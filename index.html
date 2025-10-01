@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="textures/asteroid.png" type="image/png">
+    <title>Near Earth Objects</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      
+      body {
+          margin: 0;
+          overflow: hidden;
+          background-color: #000;
+          font-family: 'Courier New', monospace;
+          color: #0f0;
+      }
+
+      canvas#bg {
+          display: block;
+          position: fixed;
+          top: 0;
+          left: 0;
+          z-index: -1;
+      }
+
+      /* NASA-Style HUD */
+      #hud {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          z-index: 100;
+      }
+
+      #mission-control {
+          position: absolute;
+          top: 20px;
+          left: 20px;
+          background: rgba(0, 20, 40, 0.85);
+          border: 2px solid #00ff88;
+          padding: 15px;
+          min-width: 320px;
+          box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+          font-size: 11px;
+          letter-spacing: 0.5px;
+      }
+
+      #mission-control h3 {
+          color: #00ff88;
+          margin-bottom: 10px;
+          font-size: 14px;
+          text-transform: uppercase;
+          border-bottom: 1px solid #00ff88;
+          padding-bottom: 5px;
+      }
+
+      .stat-row {
+          display: flex;
+          justify-content: space-between;
+          margin: 6px 0;
+          color: #88ffaa;
+      }
+
+      .stat-label {
+          color: #00ff88;
+          text-transform: uppercase;
+          font-size: 10px;
+      }
+
+      .stat-value {
+          color: #fff;
+          font-weight: bold;
+          font-family: 'Courier New', monospace;
+      }
+
+      #threat-panel {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          background: rgba(40, 0, 0, 0.85);
+          border: 2px solid #ff3333;
+          padding: 15px;
+          min-width: 300px;
+          max-height: 400px;
+          overflow-y: auto;
+          overflow-x: hidden;
+          box-shadow: 0 0 30px rgba(255, 51, 51, 0.3);
+      }
+
+      #threat-panel h3 {
+          color: #ff3333;
+          margin-bottom: 10px;
+          font-size: 14px;
+          text-transform: uppercase;
+          border-bottom: 1px solid #ff3333;
+          padding-bottom: 5px;
+      }
+
+      .threat-item {
+          background: rgba(255, 51, 51, 0.1);
+          border-left: 3px solid #ff3333;
+          padding: 8px;
+          margin: 8px 0;
+          font-size: 10px;
+          color: #ffaaaa;
+          line-height: 1.5;
+      }
+
+      .threat-item strong {
+          color: #ff6666;
+          display: block;
+          margin-bottom: 3px;
+      }
+
+      /* Scrollbar styling for threat panel */
+      #threat-panel::-webkit-scrollbar {
+          width: 10px;
+      }
+
+      #threat-panel::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.5);
+          border-radius: 5px;
+      }
+
+      #threat-panel::-webkit-scrollbar-thumb {
+          background: #ff3333;
+          border-radius: 5px;
+          border: 2px solid rgba(0, 0, 0, 0.5);
+      }
+
+      #threat-panel::-webkit-scrollbar-thumb:hover {
+          background: #ff6666;
+      }
+
+      #timeline {
+          position: absolute;
+          bottom: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(0, 20, 40, 0.85);
+          border: 2px solid #00aaff;
+          padding: 15px 25px;
+          box-shadow: 0 0 30px rgba(0, 170, 255, 0.3);
+      }
+
+      #timeline-date {
+          color: #00aaff;
+          font-size: 18px;
+          text-align: center;
+          letter-spacing: 2px;
+      }
+
+      #mini-map {
+          position: absolute;
+          bottom: 20px;
+          right: 20px;
+          width: 200px;
+          height: 200px;
+          background: rgba(0, 20, 40, 0.85);
+          border: 2px solid #00ff88;
+          box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+      }
+
+      #legend {
+          position: absolute;
+          bottom: 240px;
+          right: 20px;
+          background: rgba(0, 20, 40, 0.85);
+          border: 2px solid #00ff88;
+          padding: 10px;
+          font-size: 10px;
+          box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+      }
+
+      .legend-item {
+          display: flex;
+          align-items: center;
+          margin: 5px 0;
+          color: #88ffaa;
+      }
+
+      .legend-color {
+          width: 20px;
+          height: 20px;
+          margin-right: 8px;
+          border: 1px solid #fff;
+      }
+
+      #loader {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: #000;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          z-index: 10000;
+          transition: opacity 0.5s ease;
+      }
+
+      .nasa-logo {
+          font-size: 48px;
+          color: #00ff88;
+          text-shadow: 0 0 20px #00ff88;
+          margin-bottom: 30px;
+          letter-spacing: 10px;
+      }
+
+      .spinner {
+          border: 4px solid rgba(0, 255, 136, 0.2);
+          border-left-color: #00ff88;
+          border-radius: 50%;
+          width: 60px;
+          height: 60px;
+          animation: spin 1s linear infinite;
+          margin-bottom: 20px;
+      }
+
+      @keyframes spin {
+          to { transform: rotate(360deg); }
+      }
+
+      #loader p {
+          font-size: 14px;
+          color: #00ff88;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+      }
+
+      #progressBar {
+          width: 400px;
+          height: 4px;
+          background: rgba(0, 255, 136, 0.2);
+          margin-top: 20px;
+          overflow: hidden;
+          border: 1px solid #00ff88;
+      }
+
+      #progress {
+          width: 0%;
+          height: 100%;
+          background: #00ff88;
+          box-shadow: 0 0 10px #00ff88;
+          transition: width 0.2s ease;
+      }
+
+      #apiKeyOverlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.95);
+          display: none;
+          opacity: 0;
+          justify-content: center;
+          align-items: center;
+          z-index: 9999;
+          transition: opacity 0.5s ease;
+      }
+
+      #apiKeyBox {
+          background: rgba(0, 40, 80, 0.9);
+          padding: 40px;
+          border: 3px solid #00ff88;
+          box-shadow: 0 0 50px rgba(0, 255, 136, 0.5);
+          text-align: center;
+          max-width: 600px;
+      }
+      
+      #apiKeyBox h2 {
+          margin: 0 0 20px 0;
+          color: #00ff88;
+          text-transform: uppercase;
+          letter-spacing: 3px;
+      }
+
+      #apiKeyBox p {
+          color: #88ffaa;
+          margin: 15px 0;
+          line-height: 1.6;
+      }
+
+      #apiKeyInput {
+          padding: 12px;
+          width: 100%;
+          max-width: 400px;
+          border: 2px solid #00ff88;
+          background: rgba(0, 20, 40, 0.8);
+          color: #00ff88;
+          margin: 10px 0;
+          font-family: 'Courier New', monospace;
+          font-size: 14px;
+      }
+      
+      .duration-controls {
+        margin: 20px 0 10px 0;
+      }
+
+      .duration-btn {
+          padding: 10px 20px;
+          border: 1px solid #00ff88;
+          background: rgba(0, 255, 136, 0.1);
+          color: #00ff88;
+          cursor: pointer;
+          pointer-events: all;
+          transition: all 0.3s;
+          font-family: 'Courier New', monospace;
+      }
+
+      .duration-btn:hover {
+          background: rgba(0, 255, 136, 0.3);
+      }
+
+      .duration-btn.active {
+          background: #00ff88;
+          color: #000;
+          box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+      }
+
+      #apiKeyButton {
+          padding: 12px 30px;
+          border: 2px solid #00ff88;
+          background: rgba(0, 255, 136, 0.2);
+          color: #00ff88;
+          cursor: pointer;
+          pointer-events: all;
+          transition: all 0.3s;
+          font-family: 'Courier New', monospace;
+          text-transform: uppercase;
+          font-size: 12px;
+          letter-spacing: 2px;
+          margin-top: 10px;
+      }
+
+      #apiKeyButton:hover {
+          background: #00ff88;
+          color: #000;
+          box-shadow: 0 0 30px rgba(0, 255, 136, 0.8);
+      }
+
+      #asteroidTooltip {
+          position: absolute;
+          display: none;
+          padding: 15px;
+          background: rgba(0, 20, 40, 0.95);
+          border: 2px solid #00ff88;
+          color: #88ffaa;
+          pointer-events: none;
+          font-size: 11px;
+          z-index: 1001;
+          min-width: 250px;
+          box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+      }
+
+      #asteroidTooltip strong {
+          color: #00ff88;
+          display: inline-block;
+          min-width: 100px;
+      }
+
+      .asteroid-label {
+          position: absolute;
+          color: #fff;
+          background: rgba(0, 0, 0, 0.8);
+          padding: 3px 8px;
+          border: 1px solid #00ff88;
+          border-radius: 3px;
+          font-size: 10px;
+          white-space: nowrap;
+          pointer-events: auto; 
+          cursor: pointer;
+          font-family: 'Courier New', monospace;
+          text-shadow: 0 0 5px #000;
+      }
+
+      .crosshair {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 30px;
+          height: 30px;
+          transform: translate(-50%, -50%);
+          pointer-events: none;
+      }
+
+      .crosshair::before,
+      .crosshair::after {
+          content: '';
+          position: absolute;
+          background: rgba(0, 255, 136, 0.5);
+      }
+
+      .crosshair::before {
+          top: 50%;
+          left: 0;
+          width: 100%;
+          height: 1px;
+          transform: translateY(-50%);
+      }
+
+      .crosshair::after {
+          left: 50%;
+          top: 0;
+          width: 1px;
+          height: 100%;
+          transform: translateX(-50%);
+      }
+
+      #alert-banner {
+          position: absolute;
+          top: -100px;
+          left: 0;
+          width: 100%;
+          background: rgba(255, 0, 0, 0.9);
+          border-bottom: 3px solid #ff0000;
+          padding: 15px;
+          text-align: center;
+          color: #fff;
+          font-size: 16px;
+          font-weight: bold;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          transition: top 0.5s ease;
+          z-index: 200;
+          box-shadow: 0 5px 30px rgba(255, 0, 0, 0.8);
+          animation: pulse 1s infinite;
+      }
+
+      @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+      }
+
+      #alert-banner.show {
+          top: 0;
+      }
+
+      .scanning-line {
+          position: absolute;
+          width: 2px;
+          height: 100%;
+          background: linear-gradient(to bottom, transparent, #00ff88, transparent);
+          animation: scan 3s linear infinite;
+          pointer-events: none;
+      }
+
+      @keyframes scan {
+          0% { left: 0; }
+          100% { left: 100%; }
+      }
+
+      /* Control Panels */
+      .control-panel {
+          position: absolute;
+          bottom: 20px;
+          left: 20px;
+          background: rgba(0, 20, 40, 0.85);
+          border: 2px solid #00aaff;
+          padding: 15px;
+          box-shadow: 0 0 30px rgba(0, 170, 255, 0.3);
+      }
+
+      .control-panel h3 {
+          color: #00aaff;
+          margin-bottom: 10px;
+          font-size: 14px;
+          text-transform: uppercase;
+          border-bottom: 1px solid #00aaff;
+          padding-bottom: 5px;
+      }
+
+      .control-btn {
+          background: rgba(0, 170, 255, 0.2);
+          border: 1px solid #00aaff;
+          color: #00aaff;
+          padding: 8px 15px;
+          cursor: pointer;
+          pointer-events: all;
+          transition: all 0.3s;
+          font-family: 'Courier New', monospace;
+          text-transform: uppercase;
+          font-size: 10px;
+          margin: 5px 0;
+          display: block;
+          width: 100%;
+          text-align: center;
+      }
+
+      .control-btn:hover {
+          background: rgba(0, 170, 255, 0.4);
+          box-shadow: 0 0 15px rgba(0, 170, 255, 0.5);
+      }
+      
+      #visibility-controls {
+          bottom: 20px; /* Adjusted position */
+          border-color: #ffaa00;
+          box-shadow: 0 0 30px rgba(255, 170, 0, 0.3);
+      }
+      #visibility-controls h3 {
+          color: #ffaa00;
+          border-bottom-color: #ffaa00;
+      }
+      .visibility-btn {
+        border-color: #ffaa00;
+        color: #ffaa00;
+        background: rgba(255, 170, 0, 0.2);
+      }
+      .visibility-btn:hover {
+        background: rgba(255, 170, 0, 0.4);
+        box-shadow: 0 0 15px rgba(255, 170, 0, 0.5);
+      }
+      .visibility-btn.inactive {
+        background: rgba(100, 70, 0, 0.5);
+        color: #885500;
+        border-color: #885500;
+      }
+    </style>
+</head>
+<body>
+    <div id="loader">
+        <div class="nasa-logo">◉ Eyes on Asteroids...</div>
+        <div class="spinner"></div>
+        <p id="loader-text">Initializing Systems...</p>
+        <div id="progressBar"><div id="progress"></div></div>
+    </div>
+    
+    <div id="apiKeyOverlay">
+        <div id="apiKeyBox">
+            <h2>NASA API Authorization</h2>
+            <p>Select data fetch duration and provide API key for NEO data retrieval.</p>
+            
+            <div class="duration-controls">
+                <button class="duration-btn active" data-days="7">7 Days</button>
+                <button class="duration-btn" data-days="30">30 Days</button>
+                <button class="duration-btn" data-days="180">180 Days</button>
+            </div>
+
+            <input type="password" id="apiKeyInput" placeholder="Enter NASA API Key" value="DEMO_KEY">
+            
+            <button id="apiKeyButton">Initialize Data Link</button>
+            <p style="font-size: 10px; color: #88ffaa; margin-top: 20px;">
+              DEMO_KEY is rate-limited. For unrestricted access, obtain your free API key from:<br>
+              <a href="https://api.nasa.gov/" target="_blank" style="color: #00ff88;">https://api.nasa.gov/</a>
+            </p>
+        </div>
+    </div>
+
+    <div id="alert-banner">ALERT: POTENTIALLY HAZARDOUS ASTEROIDS DETECTED</div>
+
+    <div id="hud">
+        <div id="mission-control">
+            <h3>◉ Mission Control</h3>
+            <div class="stat-row">
+                <span class="stat-label">System Time:</span>
+                <span class="stat-value" id="system-time">--:--:--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Tracked Objects:</span>
+                <span class="stat-value" id="tracked-objects">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Hazardous Objects:</span>
+                <span class="stat-value" id="hazardous-count" style="color: #ff6666;">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Safe Objects:</span>
+                <span class="stat-value" id="safe-count" style="color: #44ff44;">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Camera Mode:</span>
+                <span class="stat-value" id="camera-mode">Free View</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Earth Rotation:</span>
+                <span class="stat-value" id="rotation-speed">0.1x</span>
+            </div>
+             <div class="stat-row">
+                <span class="stat-label">SIM STATUS:</span>
+                <span class="stat-value" id="sim-status">ACTIVE</span>
+            </div>
+        </div>
+
+        <div id="threat-panel">
+            <h3>Threat Assessment</h3>
+            <div id="threat-list"></div>
+        </div>
+
+        <div id="timeline">
+            <div id="timeline-date">Loading...</div>
+        </div>
+
+        <div id="visibility-controls" class="control-panel">
+            <h3>Visibility</h3>
+            <div id="visibility-controls-buttons">
+                <button class="control-btn visibility-btn" id="btn-toggle-all">Toggle All</button>
+                <button class="control-btn visibility-btn" id="btn-toggle-safe">Toggle Safe</button>
+                <button class="control-btn visibility-btn" id="btn-toggle-hazardous">Toggle Hazardous</button>
+            </div>
+        </div>
+
+        <div id="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #44ff44;"></div>
+                <span>Safe Asteroid</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ff4444;"></div>
+                <span>Hazardous</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ffaa00;"></div>
+                <span>Trajectory Path</span>
+            </div>
+        </div>
+
+        <div id="mini-map">
+            <canvas id="miniMapCanvas" width="200" height="200"></canvas>
+        </div>
+
+        <div class="crosshair"></div>
+    </div>
+
+    <div id="asteroidTooltip"></div>
+    <canvas id="bg"></canvas>
+    
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module" src="main.js"></script>
+</body>
+</html>
+
