@@ -1,5 +1,4 @@
-
-    import * as THREE from 'three';
+import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
     import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -329,6 +328,12 @@
             createAsteroidVisuals();
             updateStatistics();
 
+            // Set default visibility states: master toggle off, sub-toggles on
+            document.getElementById('btn-toggle-all').classList.add('inactive');
+            document.getElementById('btn-toggle-safe').classList.remove('inactive');
+            document.getElementById('btn-toggle-hazardous').classList.remove('inactive');
+            updateAsteroidVisibility(); // Apply the default hidden state
+
             apiKeyOverlay.style.opacity = '0';
             setTimeout(() => apiKeyOverlay.style.display = 'none', 500);
 
@@ -655,11 +660,9 @@ function handleMouseMove(event) {
         asteroidGroup.children.forEach(child => {
             if (child.userData.isAsteroid) {
                 const label = child.children[0];
-
-                // If the parent asteroid mesh is hidden, its label must also be hidden.
                 if (!child.visible) {
                     if (label) label.visible = false;
-                    return; // Skip further checks for this hidden asteroid.
+                    return;
                 }
 
                 if (label && label.isCSS2DObject) {
@@ -671,7 +674,6 @@ function handleMouseMove(event) {
 
                     const intersects = raycaster.intersectObject(earthMesh, false);
 
-                    // Occlusion check: hide label if it's behind the Earth.
                     if (intersects.length > 0) {
                         const distanceToAsteroid = cameraPosition.distanceTo(asteroidPosition);
                         if (intersects[0].distance < distanceToAsteroid) {
@@ -683,6 +685,28 @@ function handleMouseMove(event) {
                         label.visible = true;
                     }
                 }
+            }
+        });
+    }
+
+    // ========== VISIBILITY CONTROLS ==========
+    function updateAsteroidVisibility() {
+        const allVisible = !document.getElementById('btn-toggle-all').classList.contains('inactive');
+        const safeVisible = !document.getElementById('btn-toggle-safe').classList.contains('inactive');
+        const hazardousVisible = !document.getElementById('btn-toggle-hazardous').classList.contains('inactive');
+
+        asteroidGroup.children.forEach(child => {
+            if (child.userData.isAsteroid) {
+                let shouldBeVisible = false;
+                if (allVisible) {
+                    if (child.userData.isHazardous && hazardousVisible) {
+                        shouldBeVisible = true;
+                    } else if (!child.userData.isHazardous && safeVisible) {
+                        shouldBeVisible = true;
+                    }
+                }
+                child.visible = shouldBeVisible;
+                child.userData.pathLine.visible = shouldBeVisible;
             }
         });
     }
@@ -827,41 +851,17 @@ asteroidGroup.children.forEach(child => {
     // Visibility Controls
     document.getElementById('btn-toggle-all').addEventListener('click', function() {
         this.classList.toggle('inactive');
-        const isVisible = !this.classList.contains('inactive');
-        asteroidGroup.children.forEach(child => {
-            child.visible = isVisible;
-            if (child.userData.isAsteroid && child.children[0]) {
-                child.children[0].visible = isVisible;
-            }
-        });
+        updateAsteroidVisibility();
     });
 
     document.getElementById('btn-toggle-safe').addEventListener('click', function() {
         this.classList.toggle('inactive');
-        const isVisible = !this.classList.contains('inactive');
-        asteroidGroup.children.forEach(child => {
-            if (child.userData.isAsteroid && !child.userData.isHazardous) {
-                child.visible = isVisible;
-                child.userData.pathLine.visible = isVisible;
-                if (child.children[0]) {
-                    child.children[0].visible = isVisible;
-                }
-            }
-        });
+        updateAsteroidVisibility();
     });
 
     document.getElementById('btn-toggle-hazardous').addEventListener('click', function() {
         this.classList.toggle('inactive');
-        const isVisible = !this.classList.contains('inactive');
-        asteroidGroup.children.forEach(child => {
-            if (child.userData.isAsteroid && child.userData.isHazardous) {
-                child.visible = isVisible;
-                child.userData.pathLine.visible = isVisible;
-                if (child.children[0]) {
-                    child.children[0].visible = isVisible;
-                }
-            }
-        });
+        updateAsteroidVisibility();
     });
 
     // Keyboard shortcuts
