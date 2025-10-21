@@ -70,6 +70,8 @@ The project consists of two main files:
 * **updateStatistics()**: Updates the HUD with the total, hazardous, and safe asteroid counts.  
 * **handleMouseMove()**: Uses raycasting to detect when the mouse is hovering over an asteroid to trigger the tooltip.  
 * **updateAsteroidVisibility()**: Filters the asteroids shown on screen based on the user's selections in the control panel.
+* ![UML Diagram](uml_diagram_neo.png)
+
 
 ## **Controls**
 
