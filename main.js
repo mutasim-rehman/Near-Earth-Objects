@@ -24,7 +24,6 @@ import * as THREE from 'three';
     let intersectedAsteroid = null;
     let labelRenderer;
     let hideTooltipTimeout = null;
-    let isHoveringLabelOrTooltip = false; 
 
     // ========== DOM ELEMENTS ==========
     const loaderElement = document.getElementById('loader');
@@ -425,16 +424,17 @@ function createAsteroidVisuals() {
         labelDiv.style.color = isHazardous ? '#ff6666' : '#44ff44';
         labelDiv.style.borderColor = isHazardous ? '#ff3333' : '#00ff88';
 
-        labelDiv.addEventListener('mouseenter', () => {
+        labelDiv.addEventListener('mouseenter', (event) => {
             clearTimeout(hideTooltipTimeout);
-            isHoveringLabelOrTooltip = true;
             intersectedAsteroid = asteroidMesh;
             updateTooltip();
+            // Position tooltip near cursor when entering label
+            tooltipElement.style.left = event.clientX + 20 + 'px';
+            tooltipElement.style.top = event.clientY + 20 + 'px';
             tooltipElement.style.display = 'block';
         });
         labelDiv.addEventListener('mousemove', (event) => {
             clearTimeout(hideTooltipTimeout);
-            isHoveringLabelOrTooltip = true;
             if (intersectedAsteroid) {
                 tooltipElement.style.left = event.clientX + 20 + 'px';
                 tooltipElement.style.top = event.clientY + 20 + 'px';
@@ -442,14 +442,10 @@ function createAsteroidVisuals() {
             }
         });
         labelDiv.addEventListener('mouseleave', () => {
-            isHoveringLabelOrTooltip = false;
-            // Only hide if not hovering over tooltip
-            hideTooltipTimeout = setTimeout(() => {
-                if (!isHoveringLabelOrTooltip && intersectedAsteroid) {
-                    tooltipElement.style.display = 'none';
-                    intersectedAsteroid = null;
-                }
-            }, 100);
+            // When cursor leaves the name tag, hide tooltip immediately
+            clearTimeout(hideTooltipTimeout);
+            tooltipElement.style.display = 'none';
+            intersectedAsteroid = null;
         });
         
         const asteroidLabel = new CSS2DObject(labelDiv);
@@ -638,11 +634,6 @@ function handleMouseMove(event) {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     
-    // Don't hide tooltip if hovering over label or tooltip itself
-    if (isHoveringLabelOrTooltip) {
-        return;
-    }
-    
     clearTimeout(hideTooltipTimeout);
 
     raycaster.setFromCamera(mouse, camera);
@@ -657,6 +648,13 @@ function handleMouseMove(event) {
         }
         tooltipElement.style.left = event.clientX + 20 + 'px';
         tooltipElement.style.top = event.clientY + 20 + 'px';
+        tooltipElement.style.display = 'block';
+    } else {
+        // If mouse is not over any asteroid mesh, hide the tooltip
+        hideTooltipTimeout = setTimeout(() => {
+            tooltipElement.style.display = 'none';
+            intersectedAsteroid = null;
+        }, 50);
     }
 }
 
@@ -837,23 +835,6 @@ asteroidGroup.children.forEach(child => {
     });
 
     window.addEventListener('mousemove', handleMouseMove);
-    
-    // Tooltip hover handlers - keep tooltip visible when hovering over it
-    tooltipElement.addEventListener('mouseenter', () => {
-        clearTimeout(hideTooltipTimeout);
-        isHoveringLabelOrTooltip = true;
-        tooltipElement.style.display = 'block';
-    });
-    
-    tooltipElement.addEventListener('mouseleave', () => {
-        isHoveringLabelOrTooltip = false;
-        hideTooltipTimeout = setTimeout(() => {
-            if (!isHoveringLabelOrTooltip && intersectedAsteroid) {
-                tooltipElement.style.display = 'none';
-                intersectedAsteroid = null;
-            }
-        }, 100);
-    });
     
     // API Key Overlay Listeners
     document.querySelectorAll('.duration-btn').forEach(btn => {
