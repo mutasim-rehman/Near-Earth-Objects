@@ -657,16 +657,6 @@ function handleMouseMove(event) {
         }
         tooltipElement.style.left = event.clientX + 20 + 'px';
         tooltipElement.style.top = event.clientY + 20 + 'px';
-    } else {
-        // Only hide if not hovering over label or tooltip
-        if (!isHoveringLabelOrTooltip) {
-            hideTooltipTimeout = setTimeout(() => {
-                if (!isHoveringLabelOrTooltip && intersectedAsteroid) {
-                    tooltipElement.style.display = 'none';
-                    intersectedAsteroid = null;
-                }
-            }, 50);
-        }
     }
 }
 
